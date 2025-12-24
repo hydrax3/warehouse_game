@@ -159,7 +159,7 @@ const App: React.FC = () => {
             <div className="w-full h-px bg-slate-700 my-4"></div>
 
             <p className="text-slate-400 mb-8 font-mono text-xs leading-relaxed uppercase">
-              > Критическая ошибка оператора.<br/>> Энергия исчерпана.<br/>> Штрафные санкции применены.
+              &gt; Критическая ошибка оператора.<br/>&gt; Энергия исчерпана.<br/>&gt; Штрафные санкции применены.
             </p>
             
             <div className="bg-black border border-slate-700 p-4 w-full mb-8 relative">
