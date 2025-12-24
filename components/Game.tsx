@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameState, GameMode, TaskType, Entity, FloatingText, MiniGameState } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, COLORS, PHYSICS, TILE_SIZE, TEXTS, PLAYER_SIZE, RANKS } from '../constants';
-import { Package, Banknote, Truck as TruckIcon, ShoppingCart, Coffee, Zap, Hand, Settings, Flashlight, Volume2, VolumeX, CheckCircle, Box, ClipboardCheck, X, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Star, TrendingUp, CalendarCheck, Droplets, ArrowLeftRight, Eraser, FileText, PenTool, Cable, Monitor } from 'lucide-react';
+import { Package, Banknote, Truck as TruckIcon, ShoppingCart, Coffee, Zap, Hand, Settings, Flashlight, Volume2, VolumeX, CheckCircle, Box, ClipboardCheck, X, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Star, TrendingUp, CalendarCheck, Droplets, ArrowLeftRight, Eraser, FileText, PenTool, Cable, Monitor, Container, Smile, Pizza, Cigarette } from 'lucide-react';
 
 interface MiniGameProps {
   data?: any;
@@ -11,6 +11,153 @@ interface MiniGameProps {
 }
 
 // --- NEW MINI GAMES ---
+
+const TruckLoadingMiniGame: React.FC<MiniGameProps> = ({ data, onComplete, playSound, onClose }) => {
+    // data.mode = 'LOAD' (Outbound) or 'UNLOAD' (Inbound)
+    // data.targetCount = number of boxes
+    
+    const mode = data?.mode || 'LOAD';
+    const targetCount = data?.targetCount || 5;
+    
+    // Direction: 0=Up, 1=Down, 2=Left, 3=Right
+    const [queue, setQueue] = useState<number[]>([]);
+    const [score, setScore] = useState(0);
+    const [animating, setAnimating] = useState<string | null>(null); // 'correct' | 'wrong'
+
+    // Initialize Queue
+    useEffect(() => {
+        const newQueue = Array.from({ length: targetCount }).map(() => Math.floor(Math.random() * 4));
+        setQueue(newQueue);
+    }, [targetCount]);
+
+    const handleInput = (direction: number) => {
+        if (queue.length === 0) return;
+
+        const expected = queue[0];
+        if (direction === expected) {
+            playSound('click');
+            setScore(s => s + 1);
+            setAnimating('correct');
+            
+            // Remove first item
+            setTimeout(() => {
+                setQueue(prev => prev.slice(1));
+                setAnimating(null);
+                
+                // Check win condition inside the timeout to allow animation to play
+                if (queue.length <= 1) { // 1 because we haven't sliced yet in the state check logic usually, but here we check queue length
+                     setTimeout(() => onComplete(true), 200);
+                }
+            }, 100);
+        } else {
+            playSound('error');
+            setAnimating('wrong');
+            setTimeout(() => setAnimating(null), 200);
+        }
+    };
+
+    // Keyboard support
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (queue.length === 0) return;
+
+            let dir = -1;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') dir = 0;
+            else if (e.code === 'ArrowDown' || e.code === 'KeyS') dir = 1;
+            else if (e.code === 'ArrowLeft' || e.code === 'KeyA') dir = 2;
+            else if (e.code === 'ArrowRight' || e.code === 'KeyD') dir = 3;
+
+            if (dir !== -1) {
+                e.preventDefault();
+                handleInput(dir);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [queue]);
+
+    const isComplete = score >= targetCount;
+
+    const renderArrow = (dir: number, size: number = 24) => {
+        switch(dir) {
+            case 0: return <ArrowUp size={size} />;
+            case 1: return <ArrowDown size={size} />;
+            case 2: return <ArrowLeft size={size} />;
+            case 3: return <ArrowRight size={size} />;
+            default: return null;
+        }
+    };
+
+    const getDirColor = (dir: number) => {
+        switch(dir) {
+            case 0: return 'text-yellow-400';
+            case 1: return 'text-blue-400';
+            case 2: return 'text-red-400';
+            case 3: return 'text-green-400';
+            default: return 'text-white';
+        }
+    };
+
+    return (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in zoom-in duration-200">
+             <div className="bg-slate-800 border-2 border-slate-500 rounded-lg p-6 w-[400px] shadow-2xl relative overflow-hidden flex flex-col items-center">
+                <div className="w-full flex justify-between items-center mb-6 border-b border-slate-700 pb-2">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Container className="text-slate-400" /> {mode === 'LOAD' ? 'ПОГРУЗКА' : 'РАЗГРУЗКА'}
+                    </h2>
+                    <div className="font-mono text-xl font-bold text-emerald-400">{score} / {targetCount}</div>
+                </div>
+
+                <div className="relative h-64 w-full flex flex-col items-center justify-center mb-4">
+                     
+                     {/* Background Truck Interior */}
+                     <div className="absolute inset-0 bg-slate-900 border-4 border-slate-700 rounded-lg overflow-hidden">
+                         <div className="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_25%,rgba(255,255,255,0.05)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.05)_75%,rgba(255,255,255,0.05)_100%)] bg-[length:20px_20px]"></div>
+                     </div>
+
+                     {/* The Queue (Next items) */}
+                     <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-50">
+                         {queue.slice(1, 4).map((dir, i) => (
+                             <div key={i} className="w-10 h-10 bg-slate-700 border border-slate-500 rounded flex items-center justify-center">
+                                 <span className={getDirColor(dir)}>{renderArrow(dir, 16)}</span>
+                             </div>
+                         ))}
+                     </div>
+
+                     {/* Active Box */}
+                     {queue.length > 0 ? (
+                         <div className={`relative w-32 h-32 bg-amber-600 border-4 border-amber-800 rounded-lg shadow-2xl flex items-center justify-center transition-all duration-100 
+                            ${animating === 'correct' ? 'scale-110 opacity-0 translate-y-10' : ''}
+                            ${animating === 'wrong' ? 'translate-x-2 border-red-500 bg-red-900' : ''}
+                         `}>
+                             {/* Box details */}
+                             <div className="absolute top-2 left-2 w-full h-px bg-amber-400/30"></div>
+                             <div className="absolute bottom-0 right-0 w-8 h-8 border-t border-l border-amber-800/50"></div>
+                             
+                             {/* Arrow Prompt */}
+                             <div className={`transform scale-150 ${getDirColor(queue[0])} drop-shadow-md`}>
+                                 {renderArrow(queue[0], 48)}
+                             </div>
+                             
+                             <div className="absolute -bottom-8 text-xs text-slate-400 font-mono uppercase tracking-widest animate-pulse">
+                                Нажми
+                             </div>
+                         </div>
+                     ) : (
+                         <div className="text-emerald-500 font-bold text-2xl animate-bounce">ГОТОВО!</div>
+                     )}
+
+                </div>
+
+                <div className="text-center w-full bg-slate-900/50 p-2 rounded border border-slate-700">
+                    <p className="text-slate-400 text-xs font-mono">
+                        Используйте <span className="text-white font-bold">WASD</span> или <span className="text-white font-bold">СТРЕЛКИ</span>
+                    </p>
+                </div>
+             </div>
+        </div>
+    );
+};
 
 const PaperworkMiniGame: React.FC<MiniGameProps> = ({ onComplete, playSound, onClose }) => {
     const [checks, setChecks] = useState([false, false, false]);
@@ -626,6 +773,7 @@ interface GameProps {
 const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number>();
+  const lastTimeRef = useRef<number>(0);
   
   // Audio Refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -643,6 +791,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
   const [uiState, setUiState] = useState({
     money: 0,
     stamina: 100,
+    happiness: 100, // UI State
     currentLoad: 0,
     mode: 'WAITING', 
     taskDescription: 'Ожидание задачи...',
@@ -667,6 +816,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
       angle: 0,
       stamina: 100,
       maxStamina: 100,
+      happiness: 100,
       money: 100,
       hasPallet: false,
       loadCount: 0,
@@ -790,11 +940,11 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
         
         const noiseFilter = ctx.createBiquadFilter();
         noiseFilter.type = 'lowpass';
-        noiseFilter.frequency.value = 180; // Low rumble
+        noiseFilter.frequency.value = 120; // Lower rumble
         noiseFilter.Q.value = 1;
 
         const noiseGain = ctx.createGain();
-        noiseGain.gain.value = 0.15; // Ambient volume
+        noiseGain.gain.value = 0.25; // Louder industrial ambient
 
         noise.connect(noiseFilter).connect(noiseGain).connect(masterGain);
         noise.start();
@@ -810,7 +960,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
         oscFilter.frequency.value = 120;
 
         const oscGain = ctx.createGain();
-        oscGain.gain.value = 0.03;
+        oscGain.gain.value = 0.05;
 
         osc.connect(oscFilter).connect(oscGain).connect(masterGain);
         osc.start();
@@ -850,16 +1000,31 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
     if (uiState.isMuted || !audioCtxRef.current) return;
     const ctx = audioCtxRef.current;
     
-    // Distant scanner beep or forklift reverse
+    // Distant scanner beep or forklift reverse or metal clank
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     
-    // High pitch beep
-    osc.frequency.setValueAtTime(1200 + Math.random() * 500, ctx.currentTime);
-    osc.type = 'square';
-    
-    gain.gain.setValueAtTime(0.02, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    const type = Math.random();
+    if (type < 0.3) {
+        // High pitch beep (Scanner)
+        osc.frequency.setValueAtTime(1200 + Math.random() * 500, ctx.currentTime);
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.02, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    } else if (type < 0.6) {
+        // Low clank (Metal)
+        osc.frequency.setValueAtTime(100 + Math.random() * 50, ctx.currentTime);
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    } else {
+        // Distant drill
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + 0.5);
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+    }
     
     // Lowpass to make it sound "distant"
     const filter = ctx.createBiquadFilter();
@@ -868,7 +1033,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
 
     osc.connect(filter).connect(gain).connect(masterGainRef.current!);
     osc.start();
-    osc.stop(ctx.currentTime + 0.15);
+    osc.stop(ctx.currentTime + 0.6);
   };
 
   const playSound = (type: 'success' | 'click' | 'tape' | 'levelup' | 'error' | 'clean') => {
@@ -959,30 +1124,39 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
     entities.push({ id: 'wall_left', x: -50, y: 0, width: 50, height: WORLD_HEIGHT, color: COLORS.wall, type: 'wall' });
     entities.push({ id: 'wall_right', x: WORLD_WIDTH, y: 0, width: 50, height: WORLD_HEIGHT, color: COLORS.wall, type: 'wall' });
 
-    // Operator Booth (Top Center)
+    // --- OPERATOR BOOTH (Glass Office) ---
     const boothX = WORLD_WIDTH / 2 - 150;
     const boothY = 0;
-    // Booth Walls
-    entities.push({ id: 'booth_wall_left', x: boothX, y: 0, width: 10, height: 150, color: COLORS.wall, type: 'wall' });
-    entities.push({ id: 'booth_wall_right', x: boothX + 300, y: 0, width: 10, height: 150, color: COLORS.wall, type: 'wall' });
-    // Booth Front Wall with DOOR
-    entities.push({ id: 'booth_wall_front_1', x: boothX, y: 150, width: 100, height: 10, color: COLORS.wall, type: 'wall' });
-    entities.push({ id: 'booth_wall_front_2', x: boothX + 200, y: 150, width: 110, height: 10, color: COLORS.wall, type: 'wall' });
+    // Booth Walls (Semi-transparent in renderer)
+    entities.push({ id: 'booth_wall_left', x: boothX, y: 0, width: 10, height: 150, color: '#334155', type: 'wall', subtype: 'glass' });
+    entities.push({ id: 'booth_wall_right', x: boothX + 300, y: 0, width: 10, height: 150, color: '#334155', type: 'wall', subtype: 'glass' });
+    entities.push({ id: 'booth_wall_front_1', x: boothX, y: 150, width: 100, height: 10, color: '#334155', type: 'wall', subtype: 'glass' });
+    entities.push({ id: 'booth_wall_front_2', x: boothX + 200, y: 150, width: 110, height: 10, color: '#334155', type: 'wall', subtype: 'glass' });
     
-    // Console
+    // Console / Desk
     entities.push({ id: 'operator_console', x: boothX + 100, y: 50, width: 100, height: 60, color: '#475569', type: 'operator_console' });
-
-    // Electrical Room (Bottom Left)
+    
+    // --- ELECTRICAL ROOM (Industrial Cage) ---
     const elecX = 0;
     const elecY = WORLD_HEIGHT - 200;
-    // Room Walls
-    entities.push({ id: 'elec_wall_top', x: elecX, y: elecY, width: 250, height: 10, color: COLORS.wall, type: 'wall' });
-    // Right wall with DOOR
-    entities.push({ id: 'elec_wall_right_1', x: 250, y: elecY, width: 10, height: 60, color: COLORS.wall, type: 'wall' });
-    entities.push({ id: 'elec_wall_right_2', x: 250, y: elecY + 140, width: 10, height: 60, color: COLORS.wall, type: 'wall' });
+    // Room Walls (Cage Mesh)
+    entities.push({ id: 'elec_wall_top', x: elecX, y: elecY, width: 250, height: 10, color: '#facc15', type: 'wall' });
+    entities.push({ id: 'elec_wall_right_1', x: 250, y: elecY, width: 10, height: 60, color: '#facc15', type: 'wall' });
+    entities.push({ id: 'elec_wall_right_2', x: 250, y: elecY + 140, width: 10, height: 60, color: '#facc15', type: 'wall' });
     
+    // Transformer Booth (The Box)
+    entities.push({ id: 'transformer_box', x: 30, y: WORLD_HEIGHT - 170, width: 100, height: 100, color: '#334155', type: 'transformer_box' });
+
     // Panel (Permanent)
-    entities.push({ id: 'main_electrical_panel', x: 50, y: WORLD_HEIGHT - 50, width: 60, height: 40, color: '#fbbf24', type: 'electrical_panel' });
+    entities.push({ id: 'main_electrical_panel', x: 140, y: WORLD_HEIGHT - 170, width: 60, height: 40, color: '#fbbf24', type: 'electrical_panel' });
+
+    // --- SMOKING AREA (Outdoor/Street style) ---
+    const smokeX = WORLD_WIDTH - 250;
+    const smokeY = WORLD_HEIGHT - 250;
+    entities.push({ id: 'smoking_zone', x: smokeX, y: smokeY, width: 200, height: 200, color: '#0f172a', type: 'smoking_area' });
+    // Benches
+    entities.push({ id: 'bench_1', x: smokeX + 20, y: smokeY + 50, width: 160, height: 30, color: '#475569', type: 'bench' });
+    entities.push({ id: 'bench_2', x: smokeX + 20, y: smokeY + 120, width: 160, height: 30, color: '#475569', type: 'bench' });
 
 
     // Zones
@@ -1200,7 +1374,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
           
           // Check collision with critical entities
           const hasCollision = gameState.current.entities.some(e => {
-              if (['rack', 'wall', 'sorting_table', 'zone_in', 'zone_out', 'truck'].includes(e.type)) {
+              if (['rack', 'wall', 'sorting_table', 'zone_in', 'zone_out', 'truck', 'operator_console', 'transformer_box', 'bench'].includes(e.type)) {
                   // Simple AABB check
                   return (
                       spillRect.x < e.x + e.width &&
@@ -1338,14 +1512,19 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
     updateUI();
   };
 
-  const updateTrucks = () => {
+  const updateTrucks = (dt: number) => {
       gameState.current.entities.forEach(ent => {
           if (ent.type === 'truck') {
               if (ent.truckState === 'arriving' && ent.targetY !== undefined) {
                   const dy = ent.targetY - ent.y;
                   if (Math.abs(dy) > 2) {
-                      ent.y += dy * 0.02; 
-                      if (Math.random() < 0.05) {
+                      // Lerp movement: (1 - 0.02)^dt approx decay per frame normalized
+                      // Using pow to make it frame rate independent
+                      const decay = 1 - Math.pow(0.98, dt);
+                      ent.y += dy * decay; 
+                      
+                      // Scale probability by dt
+                      if (Math.random() < 0.05 * dt) {
                           addFloatingText("ПИ-ПИ-ПИ", ent.x + ent.width/2, ent.y + ent.height, '#ef4444');
                       }
                   } else {
@@ -1360,7 +1539,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
                   // Remove walls immediately when moving starts
                   gameState.current.entities = gameState.current.entities.filter(e => e.linkedTruckId !== ent.id);
                   
-                  ent.y -= 5; 
+                  ent.y -= 5 * dt; 
                   if (ent.y < -500) {
                       gameState.current.entities = gameState.current.entities.filter(e => e.id !== ent.id);
                   }
@@ -1573,29 +1752,51 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
                 }
             } else if (activeTask.step === 'deliver' && targetId === 'zone_outbound') {
                 if (player.loadCount > 0) { 
-                    player.loadCount = 0; 
-                    // Set next step: Paperwork at Booth
-                    activeTask.step = 'sign';
-                    activeTask.truckId = target.id;
-                    activeTask.targetId = 'operator_console';
-                    activeTask.description = 'Бюрократия: Подпишите бумаги в операторской';
-                    addFloatingText("Груз сдан!", player.x, player.y - 60, '#3b82f6');
-                    addFloatingText("Идите в операторскую", player.x, player.y - 40, '#fbbf24');
-                    updateUI();
+                    // TRIGGER TRUCK LOADING MINI-GAME (New)
+                    setMiniGame({
+                        type: 'TRUCK_LOAD',
+                        targetId: target.id,
+                        data: { mode: 'LOAD', targetCount: player.loadCount },
+                        onComplete: (success) => {
+                             if (success) {
+                                player.loadCount = 0; 
+                                // Set next step: Paperwork at Booth
+                                activeTask.step = 'sign';
+                                activeTask.truckId = target.id;
+                                activeTask.targetId = 'operator_console';
+                                activeTask.description = 'Бюрократия: Подпишите бумаги в операторской';
+                                addFloatingText("Груз сдан!", player.x, player.y - 60, '#3b82f6');
+                                addFloatingText("Идите в операторскую", player.x, player.y - 40, '#fbbf24');
+                                updateUI();
+                             }
+                             setMiniGame(null);
+                        }
+                    });
                 }
             }
             } else if (activeTask.type === TaskType.INBOUND) {
             if (activeTask.step === 'pickup' && targetId === 'zone_inbound') {
                 if (player.loadCount === 0) {
-                    player.loadCount = activeTask.boxCount;
-                    player.stamina -= 10;
-                    const racks = gameState.current.entities.filter(e => e.type === 'rack');
-                    const randomRack = racks[Math.floor(Math.random() * racks.length)];
-                    activeTask.step = 'deliver';
-                    activeTask.targetId = randomRack.id;
-                    activeTask.description = 'Приемка: Разместите товар на стеллаже';
-                    addFloatingText("Груз принят", player.x, player.y - 40, '#3b82f6');
-                    updateUI();
+                    // TRIGGER TRUCK UNLOADING MINI-GAME (New)
+                    setMiniGame({
+                        type: 'TRUCK_LOAD',
+                        targetId: target.id,
+                        data: { mode: 'UNLOAD', targetCount: activeTask.boxCount },
+                        onComplete: (success) => {
+                            if (success) {
+                                player.loadCount = activeTask.boxCount;
+                                player.stamina -= 10;
+                                const racks = gameState.current.entities.filter(e => e.type === 'rack');
+                                const randomRack = racks[Math.floor(Math.random() * racks.length)];
+                                activeTask.step = 'deliver';
+                                activeTask.targetId = randomRack.id;
+                                activeTask.description = 'Приемка: Разместите товар на стеллаже';
+                                addFloatingText("Груз принят", player.x, player.y - 40, '#3b82f6');
+                                updateUI();
+                            }
+                            setMiniGame(null);
+                        }
+                    });
                 }
             } else if (activeTask.step === 'deliver' && targetId === activeTask.targetId) {
                 if (player.loadCount > 0) { 
@@ -1695,6 +1896,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
       ...prev,
       money: player.money,
       stamina: player.stamina,
+      happiness: player.happiness,
       currentLoad: player.loadCount,
       mode: activeTask ? (
           activeTask.type === TaskType.INVENTORY ? 'INVENTORY' : 
@@ -2164,149 +2366,279 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
     
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    // --- SHADOWS ---
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    // Jack Shadow
     ctx.beginPath();
-    ctx.ellipse(0, 0, 22, 18, 0, 0, Math.PI*2);
+    ctx.roundRect(-22, -16, 56, 32, 6);
+    ctx.fill();
+    // Operator Shadow (offset slightly)
+    ctx.beginPath();
+    ctx.ellipse(-38, 2, 14, 14, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // 1. Forks (Bottom layer of vehicle)
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillRect(0, -10, 32, 6);
-    ctx.fillRect(0, 4, 32, 6);
-    // Fork Wheels
-    ctx.fillStyle = '#cbd5e1'; 
-    ctx.fillRect(28, -10, 4, 6);
-    ctx.fillRect(28, 4, 4, 6);
+    const isElectric = gameState.current.upgrades.electricJack;
+    const isMoving = Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1;
 
-    // 2. Wooden Pallet (Only if hasPallet is true)
+    // --- 1. FORKS (Bottom) ---
+    const forkColor = '#94a3b8'; // Slate 400
+    const forkDark = '#64748b'; // Slate 500
+    
+    // Left Fork
+    ctx.fillStyle = forkColor;
+    ctx.beginPath(); ctx.roundRect(0, -12, 34, 8, 1); ctx.fill();
+    ctx.fillStyle = forkDark; ctx.fillRect(0, -5, 34, 1); // Depth
+    
+    // Right Fork
+    ctx.fillStyle = forkColor;
+    ctx.beginPath(); ctx.roundRect(0, 4, 34, 8, 1); ctx.fill();
+    ctx.fillStyle = forkDark; ctx.fillRect(0, 11, 34, 1); // Depth
+
+    // Small Wheels at tip
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(26, -12, 4, 8);
+    ctx.fillRect(26, 4, 4, 8);
+
+
+    // --- 2. PALLET & CARGO ---
     if (p.hasPallet) {
-        ctx.fillStyle = '#b45309'; // Wood
-        ctx.fillRect(2, -14, 32, 28); // Pallet footprint
-        // Planks details
-        ctx.fillStyle = '#78350f'; // Dark wood for gaps
-        ctx.fillRect(12, -14, 2, 28);
-        ctx.fillRect(22, -14, 2, 28);
-        ctx.fillStyle = 'rgba(0,0,0,0.1)'; // Slight texture
-        ctx.fillRect(2, -4, 32, 8); // Center beam shadow/highlight
-    }
+        // Wood Pallet
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(2, -15, 34, 30);
+        // Detail lines (planks)
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(12, -15, 1, 30);
+        ctx.fillRect(23, -15, 1, 30);
+        ctx.fillRect(2, -4, 34, 8); // Center beam
 
-    // 3. Boxes
-    if (p.loadCount > 0) {
-        const boxSize = 10;
-        const gap = 1;
-        // Positions for up to 6 boxes (2x3 grid)
-        // Grid origin relative to pallet start (x=2, y=-14)
-        // Rows: y = -12, y = 0
-        // Cols: x = 4, x = 15, x = 26
-        
-        const offsets = [
-            {x: 4, y: -11}, {x: 4, y: 1},
-            {x: 15, y: -11}, {x: 15, y: 1},
-            {x: 26, y: -11}, {x: 26, y: 1},
-        ];
-
-        ctx.strokeStyle = '#92400e'; // Darker border
-        ctx.lineWidth = 1;
-
-        for (let i = 0; i < p.loadCount; i++) {
-            if (i >= offsets.length) break;
-            const pos = offsets[i];
-            
-            // Box Body
-            ctx.fillStyle = '#d97706'; // Cardboard
-            ctx.fillRect(pos.x, pos.y, boxSize, boxSize);
-            ctx.strokeRect(pos.x, pos.y, boxSize, boxSize);
-            
-            // Tape
-            ctx.fillStyle = '#fcd34d'; // Tape color
-            ctx.fillRect(pos.x, pos.y + 4, boxSize, 2);
+        // Boxes
+        if (p.loadCount > 0) {
+            const boxSize = 10;
+            const offsets = [
+                {x: 4, y: -11}, {x: 4, y: 1},
+                {x: 15, y: -11}, {x: 15, y: 1},
+                {x: 26, y: -11}, {x: 26, y: 1},
+            ];
+    
+            ctx.strokeStyle = '#78350f'; 
+            ctx.lineWidth = 1;
+    
+            for (let i = 0; i < p.loadCount; i++) {
+                if (i >= offsets.length) break;
+                const pos = offsets[i];
+                
+                // Box Body
+                ctx.fillStyle = '#d97706'; 
+                ctx.fillRect(pos.x, pos.y, boxSize, boxSize);
+                ctx.strokeRect(pos.x, pos.y, boxSize, boxSize);
+                
+                // Tape
+                ctx.fillStyle = '#fcd34d'; 
+                ctx.fillRect(pos.x, pos.y + 4, boxSize, 2);
+            }
         }
     }
 
-    // 4. Jack Body (Hydraulics)
-    ctx.fillStyle = gameState.current.upgrades.electricJack ? '#eab308' : '#dc2626'; 
-    ctx.beginPath();
-    ctx.roundRect(-20, -14, 24, 28, 4);
-    ctx.fill();
-    // Detail
-    ctx.fillStyle = '#475569';
-    ctx.beginPath(); ctx.arc(-10, 0, 6, 0, Math.PI*2); ctx.fill();
+    // --- 3. JACK UNIT BODY ---
+    // Pivot context for body
+    ctx.save();
+    ctx.translate(-18, 0); 
+    
+    if (isElectric) {
+        // Electric Jack (Yellow/Black Industrial)
+        ctx.fillStyle = '#eab308'; // Safety Yellow base
+        ctx.beginPath(); ctx.roundRect(-10, -14, 26, 28, 4); ctx.fill();
+        
+        // Battery cover
+        ctx.fillStyle = '#1e293b'; // Dark Grey/Black
+        ctx.fillRect(-6, -10, 16, 20);
+        
+        // Dashboard / Controls
+        ctx.fillStyle = '#475569';
+        ctx.beginPath(); ctx.roundRect(-12, -6, 8, 12, 2); ctx.fill();
+    } else {
+        // Manual Jack (Red/Orange Hydraulics)
+        ctx.fillStyle = '#dc2626'; // Red
+        ctx.beginPath(); ctx.roundRect(-8, -8, 16, 16, 4); ctx.fill();
+        
+        // Hydraulic Pump Piston
+        ctx.fillStyle = '#e2e8f0'; // Silver
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#64748b'; // Inner
+        ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
 
-    // 5. Handle
+    // --- 4. HANDLE BAR ---
+    ctx.save();
+    ctx.translate(-18, 0); // From body pivot
+    
+    // Angled arm connecting to handle
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(-20, 0); ctx.lineTo(-28, 0); ctx.stroke();
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(-28, -8); ctx.lineTo(-28, 8); ctx.stroke();
-
-    // 6. Operator
-    ctx.fillStyle = '#1e3a8a'; // Blue uniform
-    ctx.beginPath();
-    ctx.ellipse(-31, 0, 8, 14, 0, 0, Math.PI*2);
-    ctx.fill();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-18, 0);
+    ctx.stroke();
     
-    // Arms reaching to handle
-    ctx.strokeStyle = '#fca5a5'; // Skin
+    // T-Handle
+    ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 3;
-    ctx.beginPath(); 
-    ctx.moveTo(-31, -6); ctx.lineTo(-28, -6);
-    ctx.moveTo(-31, 6); ctx.lineTo(-28, 6);   
+    ctx.beginPath();
+    ctx.moveTo(-18, -10);
+    ctx.lineTo(-18, 10);
+    ctx.stroke();
+    
+    // Handle Grips
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-18, -10); ctx.lineTo(-18, -5);
+    ctx.moveTo(-18, 5); ctx.lineTo(-18, 10);
+    ctx.stroke();
+    ctx.restore();
+
+    // --- 5. OPERATOR ---
+    // Positioned behind handle
+    ctx.save();
+    ctx.translate(-40, 0); // Operator center
+
+    // Feet (Animation)
+    const walkPhase = isMoving ? Math.sin(Date.now() / 60) * 3 : 0;
+    
+    ctx.fillStyle = '#0f172a'; // Black boots
+    // Left Foot
+    ctx.beginPath(); ctx.ellipse(2 + walkPhase, -7, 6, 3.5, 0, 0, Math.PI*2); ctx.fill();
+    // Right Foot
+    ctx.beginPath(); ctx.ellipse(2 - walkPhase, 7, 6, 3.5, 0, 0, Math.PI*2); ctx.fill();
+
+    // Body (Shoulders)
+    ctx.fillStyle = '#1e3a8a'; // Work Shirt Blue
+    ctx.beginPath(); ctx.roundRect(-6, -11, 14, 22, 6); ctx.fill();
+
+    // High-Vis Vest
+    ctx.fillStyle = '#f97316'; // Safety Orange
+    ctx.beginPath(); ctx.roundRect(-6, -11, 14, 22, 6); ctx.fill();
+    
+    // Reflective Stripes
+    ctx.fillStyle = '#fef08a'; // Reflective Yellow
+    ctx.fillRect(-6, -11, 4, 22); // Left stripe
+    ctx.fillRect(2, -11, 4, 22); // Right stripe
+    ctx.fillRect(-6, -2, 14, 4); // Horizontal stripe
+
+    // Arms reaching forward
+    ctx.strokeStyle = '#fca5a5'; // Skin tone
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    
+    // Arms (reaching to handle at local x = ~ +20, y = +/- 8)
+    // Left Arm
+    ctx.beginPath();
+    ctx.moveTo(0, -9); // Shoulder
+    ctx.quadraticCurveTo(10, -10, 22, -8); // Elbow -> Hand
+    ctx.stroke();
+    
+    // Right Arm
+    ctx.beginPath();
+    ctx.moveTo(0, 9);
+    ctx.quadraticCurveTo(10, 10, 22, 8);
     ctx.stroke();
 
-    // Head
-    ctx.fillStyle = '#fca5a5'; 
-    ctx.beginPath(); ctx.arc(-31, 0, 7, 0, Math.PI*2); ctx.fill();
-    
-    // Helmet
-    const grad = ctx.createRadialGradient(-31, -2, 0, -31, 0, 8);
-    grad.addColorStop(0, '#fef08a');
-    grad.addColorStop(1, '#eab308'); 
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(-31, 0, 7, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#a16207';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(-31, 0, 7, 0, Math.PI*2); ctx.stroke();
+    // Gloves
+    ctx.fillStyle = gameState.current.upgrades.gloves ? '#4b5563' : '#fca5a5';
+    ctx.beginPath(); ctx.arc(22, -8, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(22, 8, 3, 0, Math.PI*2); ctx.fill();
 
+    // Head / Helmet
+    // Rank colors
+    const rankColors = [
+        ['#facc15', '#a16207'], // Yellow (Default)
+        ['#facc15', '#a16207'],
+        ['#fb923c', '#c2410c'], // Orange
+        ['#fb923c', '#c2410c'],
+        ['#22c55e', '#15803d'], // Green
+        ['#3b82f6', '#1d4ed8'], // Blue
+        ['#ffffff', '#94a3b8'], // White (Boss)
+        ['#fef08a', '#ca8a04'], // Gold (Master)
+    ];
+    const rankIdx = Math.min(gameState.current.level.current, rankColors.length - 1);
+    const [helmetMain, helmetDark] = rankColors[rankIdx];
+
+    // Helmet shell
+    const grad = ctx.createRadialGradient(-2, -2, 0, 0, 0, 8);
+    grad.addColorStop(0, '#ffffff'); 
+    grad.addColorStop(0.5, helmetMain);
+    grad.addColorStop(1, helmetDark);
+    
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(0, 0, 8.5, 0, Math.PI*2); ctx.fill();
+    // Helmet rim/brim
+    ctx.strokeStyle = helmetDark;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Front brim
+    ctx.fillStyle = helmetDark;
+    ctx.beginPath(); ctx.ellipse(6, 0, 3, 6, 0, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
     ctx.restore();
   };
 
-  const gameLoop = () => {
+  const gameLoop = (timestamp: number) => {
     if (!canvasRef.current) return;
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
     
-    // Skip physics/gameplay updates if mini-game is active
+    // --- Delta Time Calculation ---
+    if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+    const rawDelta = timestamp - lastTimeRef.current;
+    lastTimeRef.current = timestamp;
+    const dt = Math.min(rawDelta, 100) / 16.666;
+
+    const state = gameState.current;
+    const player = state.player;
+
+    const onSmokingArea = state.entities.some(e =>
+        e.type === 'smoking_area' &&
+        player.x > e.x && player.x < e.x + e.width &&
+        player.y > e.y && player.y < e.y + e.height
+    );
+
     if (miniGame) {
          // Render static background for immersion? 
     } else {
-        updateTrucks();
+        updateTrucks(dt);
 
-        const state = gameState.current;
-        const player = state.player;
-
-        // Physics Interpolation Helper
-        const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
-        
-        // Check for oil spill collision
+        // Check for special zones
         const onSpill = state.entities.some(e => 
             e.type === 'spill' && 
             Math.abs(player.x - (e.x + e.width/2)) < e.width/2 && 
             Math.abs(player.y - (e.y + e.height/2)) < e.height/2
         );
 
-        // Calculate Physics Parameters based on Load and Environment
+        // Happiness Logic
+        if (onSmokingArea) {
+            player.happiness = Math.min(100, player.happiness + 0.1 * dt); // Restore happiness
+            // Smoke particles could go here conceptually
+        } else {
+            player.happiness = Math.max(0, player.happiness - 0.01 * dt); // Decay happiness
+        }
+
+        // Calculate Physics Parameters
         const loadFactor = player.loadCount / player.maxLoad; // 0 to 1
         
-        let currentAccel = lerp(PHYSICS.accel, PHYSICS.accelLoaded, loadFactor);
-        let currentFriction = lerp(PHYSICS.friction, PHYSICS.frictionLoaded, loadFactor);
-        const currentMaxSpeed = lerp(PHYSICS.maxSpeed, PHYSICS.maxSpeedLoaded, loadFactor) * (state.upgrades.electricJack ? 1.5 : 1) * player.speedMultiplier;
+        let currentAccel = (PHYSICS.accel * (1 - loadFactor)) + (PHYSICS.accelLoaded * loadFactor);
+        let currentFriction = (PHYSICS.friction * (1 - loadFactor)) + (PHYSICS.frictionLoaded * loadFactor);
+        let currentMaxSpeed = ((PHYSICS.maxSpeed * (1 - loadFactor)) + (PHYSICS.maxSpeedLoaded * loadFactor)) * (state.upgrades.electricJack ? 1.5 : 1) * player.speedMultiplier;
 
         if (onSpill) {
             currentAccel = PHYSICS.accelOil;
             currentFriction = PHYSICS.frictionOil;
+        }
+
+        // Depression penalty
+        if (player.happiness < 10) {
+            currentMaxSpeed *= 0.5; // Walk slow
         }
 
         let ax = 0; let ay = 0;
@@ -2317,35 +2649,42 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
         if (state.keys['KeyA'] || state.keys['ArrowLeft']) ax -= currentAccel;
         if (state.keys['KeyD'] || state.keys['ArrowRight']) ax += currentAccel;
         
+        ax *= dt; 
+        ay *= dt;
+        
         if (isSprinting && player.stamina > 0 && !onSpill) {
-           ax *= PHYSICS.sprintMultiplier; ay *= PHYSICS.sprintMultiplier; player.stamina -= 0.2;
-        } else if (player.stamina < player.maxStamina) { player.stamina += 0.05; }
+           ax *= PHYSICS.sprintMultiplier; ay *= PHYSICS.sprintMultiplier; 
+           player.stamina -= 0.2 * dt;
+        } else if (player.stamina < player.maxStamina) { 
+           player.stamina += 0.05 * dt; 
+        }
         
         player.vx += ax; 
         player.vy += ay; 
-        player.vx *= currentFriction; 
-        player.vy *= currentFriction;
+        
+        const frictionFactor = Math.pow(currentFriction, dt);
+        player.vx *= frictionFactor; 
+        player.vy *= frictionFactor;
         
         const speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
         if (speed > currentMaxSpeed) { const r = currentMaxSpeed / speed; player.vx *= r; player.vy *= r; }
         
-        let nextX = player.x + player.vx; let nextY = player.y + player.vy;
+        let nextX = player.x + player.vx * dt; 
+        let nextY = player.y + player.vy * dt;
+
         if (nextX < 20) nextX = 20; if (nextX > WORLD_WIDTH - 20) nextX = WORLD_WIDTH - 20;
         if (nextY < 20) nextY = 20; if (nextY > WORLD_HEIGHT - 20) nextY = WORLD_HEIGHT - 20;
         
         const playerRect = { x: nextX - PLAYER_SIZE/2, y: nextY - PLAYER_SIZE/2, w: PLAYER_SIZE, h: PLAYER_SIZE };
         for (const ent of state.entities) {
-            // Updated Collision Check
-            // We NO LONGER COLLIDE with the 'truck' entity directly if it is waiting.
-            // Instead, we collide with the invisible walls spawned around it.
-            // This allows the player to walk into the open back of the truck.
-            
             const isCollidable = 
                 ent.type === 'rack' || 
                 ent.type === 'wall' || 
                 ent.type === 'sorting_table' || 
                 ent.type === 'operator_console' ||
-                (ent.type === 'truck' && ent.truckState !== 'waiting'); // Only collide with moving trucks
+                ent.type === 'transformer_box' || // Collide with transformer
+                ent.type === 'bench' || // Collide with bench
+                (ent.type === 'truck' && ent.truckState !== 'waiting'); 
 
             if (isCollidable) {
                 if (playerRect.x < ent.x + ent.width && playerRect.x + playerRect.w > ent.x &&
@@ -2357,10 +2696,11 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
         player.x = nextX; player.y = nextY;
         if (Math.abs(player.vx) > 0.1 || Math.abs(player.vy) > 0.1) { player.angle = Math.atan2(player.vy, player.vx); }
         if (state.keys['Space']) { if (!state.keys['Space_latched']) { checkInteraction(); state.keys['Space_latched'] = true; } } else { state.keys['Space_latched'] = false; }
-        if (Math.random() < 0.002) addFloatingText(TEXTS[Math.floor(Math.random() * TEXTS.length)], player.x, player.y - 50, '#94a3b8');
+        
+        if (Math.random() < 0.002 * dt) addFloatingText(TEXTS[Math.floor(Math.random() * TEXTS.length)], player.x, player.y - 50, '#94a3b8');
         
         // Ambient Events
-        if (Math.random() < 0.005) playRandomBeep();
+        if (Math.random() < 0.005 * dt) playRandomBeep();
 
         if (player.stamina <= 0) { onGameOver(player.money); return; }
 
@@ -2369,9 +2709,6 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
         state.camera.x = Math.max(0, Math.min(state.camera.x, WORLD_WIDTH - CANVAS_WIDTH));
         state.camera.y = Math.max(-300, Math.min(state.camera.y, WORLD_HEIGHT - CANVAS_HEIGHT));
     }
-
-    const state = gameState.current;
-    const player = state.player;
 
     ctx.save();
     ctx.translate(-state.camera.x, -state.camera.y);
@@ -2404,7 +2741,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
     ctx.restore();
 
     // 3. Draw Zones
-    const zones = state.entities.filter(e => e.type.startsWith('zone'));
+    const zones = state.entities.filter(e => e.type.startsWith('zone') && e.type !== 'smoking_area'); // Smoking area is distinct
     const renderableEntities = state.entities.filter(e => !e.type.startsWith('zone') && e.subtype !== 'invisible');
 
     for (const ent of zones) {
@@ -2421,7 +2758,6 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
             ctx.fillRect(ent.x + i, ent.y, 20, 5);
         }
         
-        // --- Gate Rails Visual ---
         if (patternsRef.current.hazard) {
             ctx.fillStyle = patternsRef.current.hazard;
             ctx.fillRect(ent.x - 10, ent.y - 40, 10, 80);
@@ -2431,6 +2767,27 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
         ctx.lineWidth = 1;
         ctx.strokeRect(ent.x - 10, ent.y - 40, 10, 80);
         ctx.strokeRect(ent.x + ent.width, ent.y - 40, 10, 80);
+    }
+
+    // Draw Smoking Area
+    const smokingArea = state.entities.find(e => e.type === 'smoking_area');
+    if (smokingArea) {
+        ctx.fillStyle = '#334155'; // Concrete
+        ctx.fillRect(smokingArea.x, smokingArea.y, smokingArea.width, smokingArea.height);
+        
+        // Border
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(smokingArea.x, smokingArea.y, smokingArea.width, smokingArea.height);
+
+        // Litter (Cigarette butts)
+        ctx.fillStyle = '#cbd5e1';
+        // Random noise based on pos
+        for(let i=0; i<30; i++) {
+            const rx = (Math.sin(i*123) + 1) / 2 * (smokingArea.width - 10);
+            const ry = (Math.cos(i*321) + 1) / 2 * (smokingArea.height - 10);
+            ctx.fillRect(smokingArea.x + 5 + rx, smokingArea.y + 5 + ry, 3, 1);
+        }
     }
 
     // 4. Draw Gate Labels
@@ -2462,6 +2819,42 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
           ctx.restore();
           continue;
       }
+      if (ent.type === 'bench') {
+          // Legs
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(ent.x + 5, ent.y + 5, 5, 20);
+          ctx.fillRect(ent.x + ent.width - 10, ent.y + 5, 5, 20);
+          // Seat
+          ctx.fillStyle = '#3f6212'; // Dark green wood
+          ctx.fillRect(ent.x, ent.y, ent.width, 10);
+          // Highlight
+          ctx.fillStyle = 'rgba(255,255,255,0.1)';
+          ctx.fillRect(ent.x, ent.y, ent.width, 2);
+          continue;
+      }
+      if (ent.type === 'transformer_box') {
+          // Main Box
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(ent.x, ent.y, ent.width, ent.height);
+          // Vents
+          ctx.fillStyle = '#1e293b';
+          for(let i=10; i<ent.height-10; i+=10) {
+              ctx.fillRect(ent.x + 10, ent.y + i, ent.width - 20, 4);
+          }
+          // Warning Sign
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.moveTo(ent.x + ent.width/2, ent.y + 20);
+          ctx.lineTo(ent.x + ent.width/2 - 15, ent.y + 50);
+          ctx.lineTo(ent.x + ent.width/2 + 15, ent.y + 50);
+          ctx.fill();
+          // Bolt
+          ctx.fillStyle = 'black';
+          ctx.textAlign = 'center';
+          ctx.font = '20px Arial';
+          ctx.fillText("⚡", ent.x + ent.width/2, ent.y + 45);
+          continue;
+      }
       if (ent.type === 'electrical_panel') {
           ctx.fillStyle = '#4b5563';
           ctx.fillRect(ent.x, ent.y, ent.width, ent.height);
@@ -2483,19 +2876,32 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
           // Desk
           ctx.fillStyle = '#1e293b'; // Dark wood/metal
           ctx.fillRect(ent.x, ent.y, ent.width, ent.height);
-          // Monitor
+          // Monitors
           ctx.fillStyle = '#000';
-          ctx.fillRect(ent.x + 20, ent.y + 10, 60, 40);
-          // Screen
-          ctx.fillStyle = state.activeTask?.step === 'sign' ? '#3b82f6' : '#0f172a'; // Blue screen if active
-          ctx.fillRect(ent.x + 22, ent.y + 12, 56, 36);
+          ctx.fillRect(ent.x + 10, ent.y + 10, 30, 25); // Left
+          ctx.fillRect(ent.x + 45, ent.y + 5, 40, 30); // Center
+          ctx.fillRect(ent.x + 90, ent.y + 10, 30, 25); // Right
           
+          // Screen Glow
+          ctx.fillStyle = '#06b6d4';
+          ctx.fillRect(ent.x + 12, ent.y + 12, 26, 21);
+          ctx.fillStyle = state.activeTask?.step === 'sign' ? '#3b82f6' : '#0ea5e9'; 
+          ctx.fillRect(ent.x + 47, ent.y + 7, 36, 26);
+          ctx.fillStyle = '#06b6d4';
+          ctx.fillRect(ent.x + 92, ent.y + 12, 26, 21);
+          
+          // Chair back
+          ctx.fillStyle = '#334155';
+          ctx.beginPath();
+          ctx.arc(ent.x + 65, ent.y + 60, 15, Math.PI, 0);
+          ctx.fill();
+
           if (state.activeTask?.step === 'sign') {
               // Blink text on screen
               if (Math.floor(Date.now() / 500) % 2 === 0) {
                   ctx.fillStyle = '#fff';
                   ctx.font = '10px monospace';
-                  ctx.fillText("SIGN", ent.x + 50, ent.y + 35);
+                  ctx.fillText("SIGN", ent.x + 65, ent.y + 25);
               }
           }
           continue;
@@ -2525,8 +2931,41 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
           continue;
       }
       if (ent.type === 'wall') {
-          ctx.fillStyle = ent.color; ctx.fillRect(ent.x, ent.y, ent.width, ent.height);
-          ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(ent.x, ent.y, ent.width, 10);
+          if (ent.subtype === 'glass') {
+              // Glass Walls
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.2)'; // Transparent blue-ish
+              ctx.fillRect(ent.x, ent.y, ent.width, ent.height);
+              ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(ent.x, ent.y, ent.width, ent.height);
+              // Reflection lines
+              ctx.beginPath();
+              ctx.moveTo(ent.x, ent.y + ent.height);
+              ctx.lineTo(ent.x + ent.width, ent.y);
+              ctx.stroke();
+          } else if (ent.id.includes('elec')) {
+              // Cage Walls (Yellow Mesh)
+              ctx.strokeStyle = ent.color; // Yellow
+              ctx.lineWidth = 4;
+              ctx.strokeRect(ent.x, ent.y, ent.width, ent.height);
+              // Crosshatch pattern
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(ent.x, ent.y, ent.width, ent.height);
+              ctx.clip();
+              ctx.strokeStyle = 'rgba(250, 204, 21, 0.3)';
+              ctx.lineWidth = 2;
+              for(let i=-50; i<300; i+=10) {
+                  ctx.moveTo(ent.x + i, ent.y);
+                  ctx.lineTo(ent.x + i + 50, ent.y + 150);
+              }
+              ctx.stroke();
+              ctx.restore();
+          } else {
+              // Standard Walls
+              ctx.fillStyle = ent.color; ctx.fillRect(ent.x, ent.y, ent.width, ent.height);
+              ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(ent.x, ent.y, ent.width, 10);
+          }
           continue;
       }
       if (ent.type === 'truck') {
@@ -2541,6 +2980,21 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
 
     drawPlayer(ctx, player);
     
+    // Draw Smoke Particles if player is in smoking area
+    if (onSmokingArea) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(200, 200, 200, 0.3)';
+        for(let i=0; i<5; i++) {
+            const px = player.x + (Math.random()-0.5)*20;
+            const py = player.y - 30 - Math.random()*20;
+            const size = Math.random()*10 + 5;
+            ctx.beginPath();
+            ctx.arc(px, py, size, 0, Math.PI*2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
     // 6. Draw Overhead Shutter Boxes
     // Inbound
     ctx.fillStyle = '#475569';
@@ -2563,7 +3017,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
       ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
       ctx.fillText(ft.text, ft.x, ft.y);
       ctx.shadowBlur = 0;
-      ft.y -= 0.5; ft.life--;
+      ft.y -= 0.5 * dt; ft.life -= dt;
     }
 
     ctx.restore();
@@ -2583,16 +3037,20 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
     ctx.beginPath(); ctx.moveTo(screenX, screenY); ctx.arc(screenX, screenY, 300, player.angle - 0.3, player.angle + 0.3); ctx.fillStyle = beamGrad; ctx.fill();
     ctx.restore();
 
-    if (Math.random() < 0.1) updateUI();
+    if (Math.random() < 0.1 * dt) updateUI();
     requestRef.current = requestAnimationFrame(gameLoop);
   };
 
-  const buyItem = (item: 'coffee' | 'gloves' | 'electricJack', cost: number) => {
+  const buyItem = (item: 'coffee' | 'gloves' | 'electricJack' | 'pizza', cost: number) => {
     if (gameState.current.player.money >= cost) {
       gameState.current.player.money -= cost;
       if (item === 'coffee') {
         gameState.current.player.stamina = Math.min(gameState.current.player.stamina + 30, gameState.current.player.maxStamina);
         addFloatingText("Бодрость!", gameState.current.player.x, gameState.current.player.y - 40, '#38bdf8');
+      } else if (item === 'pizza') {
+        gameState.current.player.happiness = Math.min(gameState.current.player.happiness + 100, 100);
+        gameState.current.player.stamina = Math.min(gameState.current.player.stamina + 50, gameState.current.player.maxStamina);
+        addFloatingText("ВКУСНОТИЩА!", gameState.current.player.x, gameState.current.player.y - 40, '#facc15');
       } else if (item === 'gloves') {
         gameState.current.upgrades.gloves = true;
       } else if (item === 'electricJack') {
@@ -2634,6 +3092,20 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
                <div 
                  className={`h-full transition-all duration-300 ${uiState.stamina < 30 ? 'bg-red-600' : 'bg-blue-600'}`} 
                  style={{ width: `${uiState.stamina}%` }}
+               />
+             </div>
+           </div>
+
+           {/* Happiness */}
+           <div className="mt-1">
+             <div className="flex justify-between text-xs mb-1 font-bold text-slate-300">
+               <span className="flex items-center gap-1"><Smile size={12} className={uiState.happiness < 30 ? 'text-red-500' : 'text-yellow-400'}/> НАСТРОЕНИЕ</span>
+               <span className={uiState.happiness < 30 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}>{Math.floor(uiState.happiness)}%</span>
+             </div>
+             <div className="w-full bg-slate-800 h-2 rounded-sm overflow-hidden border border-slate-700 mb-4">
+               <div 
+                 className={`h-full transition-all duration-300 ${uiState.happiness < 30 ? 'bg-red-600' : 'bg-yellow-500'}`} 
+                 style={{ width: `${uiState.happiness}%` }}
                />
              </div>
            </div>
@@ -2778,6 +3250,14 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
             onClose={() => setMiniGame(null)}
           />
       )}
+      {miniGame && miniGame.type === 'TRUCK_LOAD' && (
+          <TruckLoadingMiniGame
+            data={miniGame.data}
+            onComplete={miniGame.onComplete}
+            playSound={playSound}
+            onClose={() => setMiniGame(null)}
+          />
+      )}
 
       {/* Shop Modal */}
       {uiState.isShopOpen && (
@@ -2789,6 +3269,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
             </div>
             
             <div className="p-6 space-y-4">
+              {/* Coffee */}
               <div className="group bg-slate-800/50 hover:bg-slate-800 p-3 rounded border border-slate-700 hover:border-indigo-500/50 transition-all flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <div className="bg-amber-950/50 p-2 rounded text-amber-500"><Coffee size={24} /></div>
@@ -2800,6 +3281,19 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
                 <button onClick={() => buyItem('coffee', 50)} className="bg-slate-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors">50 ₽</button>
               </div>
 
+              {/* Pizza */}
+              <div className="group bg-slate-800/50 hover:bg-slate-800 p-3 rounded border border-slate-700 hover:border-indigo-500/50 transition-all flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className="bg-red-950/50 p-2 rounded text-red-500"><Pizza size={24} /></div>
+                  <div>
+                    <div className="font-bold text-white">Пицца</div>
+                    <div className="text-xs text-slate-400">Та самая легенда. +100 Счастья</div>
+                  </div>
+                </div>
+                <button onClick={() => buyItem('pizza', 300)} className="bg-slate-700 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold transition-colors">300 ₽</button>
+              </div>
+
+              {/* Gloves */}
               <div className="group bg-slate-800/50 hover:bg-slate-800 p-3 rounded border border-slate-700 hover:border-indigo-500/50 transition-all flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <div className="bg-blue-950/50 p-2 rounded text-blue-500"><Hand size={24} /></div>
@@ -2815,6 +3309,7 @@ const Game: React.FC<GameProps> = ({ onGameOver, onWin, onExit }) => {
                  )}
               </div>
 
+              {/* Jack */}
               <div className="group bg-slate-800/50 hover:bg-slate-800 p-3 rounded border border-slate-700 hover:border-indigo-500/50 transition-all flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <div className="bg-yellow-950/50 p-2 rounded text-yellow-500"><Zap size={24} /></div>

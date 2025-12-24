@@ -27,8 +27,8 @@ export interface Entity {
   width: number;
   height: number;
   color: string;
-  type: 'wall' | 'rack' | 'zone_in' | 'zone_out' | 'truck' | 'decoration' | 'pallet' | 'sorting_table' | 'spill' | 'electrical_panel' | 'operator_console';
-  subtype?: 'stain' | 'crack' | 'tire_mark' | 'invisible'; // Added invisible subtype for truck collision
+  type: 'wall' | 'rack' | 'zone_in' | 'zone_out' | 'truck' | 'decoration' | 'pallet' | 'sorting_table' | 'spill' | 'electrical_panel' | 'operator_console' | 'smoking_area' | 'transformer_box' | 'bench';
+  subtype?: 'stain' | 'crack' | 'tire_mark' | 'invisible' | 'glass'; 
   rotation?: number;
   
   // Specific properties
@@ -57,6 +57,7 @@ export interface GameState {
     angle: number;
     stamina: number;
     maxStamina: number;
+    happiness: number; // New Mechanic
     money: number;
     hasPallet: boolean;
     loadCount: number; // 0 to maxLoad
@@ -97,7 +98,7 @@ export interface GameState {
   };
 }
 
-export type MiniGameType = 'PACKING' | 'INVENTORY' | 'SORTING' | 'CLEANING' | 'PAPERWORK' | 'WIRES';
+export type MiniGameType = 'PACKING' | 'INVENTORY' | 'SORTING' | 'CLEANING' | 'PAPERWORK' | 'WIRES' | 'TRUCK_LOAD';
 
 export interface MiniGameState {
   type: MiniGameType;
