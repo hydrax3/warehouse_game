@@ -131,11 +131,11 @@ const App: React.FC = () => {
           {/* Boot Sequence Overlay */}
           {bootSequence && (
              <div className="absolute inset-0 bg-black z-50 flex flex-col p-8 font-mono text-green-500 text-sm">
-                <p>> BOOTING SYSTEM...</p>
-                <p>> CHECKING MEMORY... OK</p>
-                <p>> LOADING ASSETS... OK</p>
-                <p>> CONNECTING TO SERVER... OK</p>
-                <p>> INITIALIZING HYDRAULICS...</p>
+                <p>&gt; BOOTING SYSTEM...</p>
+                <p>&gt; CHECKING MEMORY... OK</p>
+                <p>&gt; LOADING ASSETS... OK</p>
+                <p>&gt; CONNECTING TO SERVER... OK</p>
+                <p>&gt; INITIALIZING HYDRAULICS...</p>
                 <p className="animate-pulse mt-4">_</p>
              </div>
           )}
